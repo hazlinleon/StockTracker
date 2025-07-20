@@ -1,0 +1,129 @@
+{*====== 二次进场确认选股公式 ======*}
+
+{* 公式：二次进场确认策略 *}
+{* 理论基础：股价突破前期高点需要主力资金二次确认底部 *}
+{* 策略逻辑：第一次进场→回落→第二次进场突破→回落缩量时买入 *}
+
+{*----- 第一步：定义前期高点和回落 -----*}
+
+{* 前期高点(10-15天前的高点) *}
+PREV_HIGH:=REF(HHV(HIGH,5),10);       {* 10天前的前5天最高点 *}
+
+{* 从前期高点开始的回落确认 *}
+FALL_FROM_HIGH:=REF(LLV(LOW,8),5)>PREV_HIGH*0.9; {* 5天前的8天最低点仍高于前高90% *}
+
+{*----- 第二步：第一次进场确认识别 -----*}
+
+{* 2.1 第一次进场前的低点 *}
+LOW1_BEFORE:=REF(LLV(LOW,3),7);       {* 7天前的前3天最低点 *}
+
+{* 2.2 第一次进场中阳线(6天前) *}
+ENTRY1_DAY:=6;                        {* 第一次进场日定义为6天前 *}
+YANG1_CLOSE:=REF(CLOSE,ENTRY1_DAY);   {* 第一次中阳线收盘价 *}
+YANG1_OPEN:=REF(OPEN,ENTRY1_DAY);     {* 第一次中阳线开盘价 *}
+YANG1_HIGH:=REF(HIGH,ENTRY1_DAY);     {* 第一次中阳线最高价 *}
+YANG1_LOW:=REF(LOW,ENTRY1_DAY);       {* 第一次中阳线最低价 *}
+YANG1_VOL:=REF(VOL,ENTRY1_DAY);       {* 第一次中阳线成交量 *}
+
+{* 2.3 第一次中阳线特征验证 *}
+IS_YANG1:=YANG1_CLOSE>YANG1_OPEN*1.03; {* 中阳线涨幅>3% *}
+YANG1_FROM_LOW:=YANG1_LOW<=LOW1_BEFORE*1.02; {* 中阳线低点接近前期低点 *}
+
+{* 2.4 第一次进场放量特征(温和放量) *}
+AVG_VOL1:=REF(MA(VOL,5),ENTRY1_DAY+1); {* 第一次进场前5日平均量 *}
+VOL1_OK:=YANG1_VOL>AVG_VOL1*1.2 AND YANG1_VOL<AVG_VOL1*2.5; {* 温和放量1.2-2.5倍 *}
+
+{* 2.5 第一次进场后3天不破低点确认 *}
+NO_BREAK1_DAY1:=REF(LOW,ENTRY1_DAY-1)>YANG1_LOW*0.995; {* 次日不破 *}
+NO_BREAK1_DAY2:=REF(LOW,ENTRY1_DAY-2)>YANG1_LOW*0.995; {* 第3日不破 *}
+NO_BREAK1_DAY3:=REF(LOW,ENTRY1_DAY-3)>YANG1_LOW*0.995; {* 第4日不破 *}
+ENTRY1_HOLD:=NO_BREAK1_DAY1 AND NO_BREAK1_DAY2 AND NO_BREAK1_DAY3;
+
+{* 2.6 第一次进场确认完整性 *}
+ENTRY1_OK:=IS_YANG1 AND YANG1_FROM_LOW AND VOL1_OK AND ENTRY1_HOLD;
+
+{*----- 第三步：第二次进场确认识别 -----*}
+
+{* 3.1 第二次进场前的低点 *}
+LOW2_BEFORE:=REF(LLV(LOW,3),3);       {* 3天前的前3天最低点 *}
+
+{* 3.2 第二次进场中阳线(昨天或今天) *}
+ENTRY2_DAY:=1;                        {* 第二次进场日定义为昨天 *}
+YANG2_CLOSE:=REF(CLOSE,ENTRY2_DAY);   {* 第二次中阳线收盘价 *}
+YANG2_OPEN:=REF(OPEN,ENTRY2_DAY);     {* 第二次中阳线开盘价 *}
+YANG2_HIGH:=REF(HIGH,ENTRY2_DAY);     {* 第二次中阳线最高价 *}
+YANG2_LOW:=REF(LOW,ENTRY2_DAY);       {* 第二次中阳线最低价 *}
+YANG2_VOL:=REF(VOL,ENTRY2_DAY);       {* 第二次中阳线成交量 *}
+
+{* 3.3 第二次中阳线特征验证 *}
+IS_YANG2:=YANG2_CLOSE>YANG2_OPEN*1.03; {* 中阳线涨幅>3% *}
+YANG2_FROM_LOW:=YANG2_LOW<=LOW2_BEFORE*1.02; {* 中阳线低点接近前期低点 *}
+
+{* 3.4 第二次进场突破第一次高点 *}
+BREAK_ENTRY1:=YANG2_HIGH>YANG1_HIGH*1.01; {* 第二次高点突破第一次高点1% *}
+
+{* 3.5 第二次进场放量特征(温和放量) *}
+AVG_VOL2:=REF(MA(VOL,5),ENTRY2_DAY+1); {* 第二次进场前5日平均量 *}
+VOL2_OK:=YANG2_VOL>AVG_VOL2*1.2 AND YANG2_VOL<AVG_VOL2*2.5; {* 温和放量1.2-2.5倍 *}
+
+{* 3.6 第二次进场确认完整性 *}
+ENTRY2_OK:=IS_YANG2 AND YANG2_FROM_LOW AND BREAK_ENTRY1 AND VOL2_OK;
+
+{*----- 第四步：当前买入时机确认 -----*}
+
+{* 4.1 今日处于第二次进场后的回落阶段 *}
+TODAY_PULLBACK:=CLOSE<YANG2_HIGH*0.98; {* 今日收盘低于第二次中阳线高点2% *}
+ABOVE_YANG2_LOW:=LOW>YANG2_LOW*0.995;  {* 今日最低价不破第二次中阳线低点 *}
+
+{* 4.2 今日缩量特征 *}
+TODAY_SHRINK:=VOL<REF(VOL,1)*0.8;      {* 今日成交量小于昨日80% *}
+VOL_NORMAL:=VOL>REF(MA(VOL,10),1)*0.3; {* 成交量不能太小,至少是10日均量30% *}
+
+{* 4.3 今日技术特征 *}
+TODAY_STABLE:=CLOSE>LOW*1.005;         {* 今日收盘比最低价高0.5%以上 *}
+NOT_BIG_DROP:=CLOSE>REF(CLOSE,1)*0.97; {* 今日收盘比昨日收盘跌幅不超过3% *}
+
+{*----- 第五步：整体趋势和位置确认 -----*}
+
+{* 5.1 整体趋势向上(两次进场都比前期低点高) *}
+TREND_UP:=YANG1_LOW>REF(LLV(LOW,8),12) AND YANG2_LOW>REF(LLV(LOW,8),8);
+
+{* 5.2 当前价位合理(不能离前期高点太近) *}
+PRICE_POSITION:=CLOSE<PREV_HIGH*0.95;  {* 当前价格低于前期高点5% *}
+
+{* 5.3 两次进场间隔合理 *}
+TIME_GAP:=ENTRY1_DAY-ENTRY2_DAY>=3 AND ENTRY1_DAY-ENTRY2_DAY<=8; {* 两次进场间隔3-8天 *}
+
+{*----- 最终选股条件 -----*}
+
+FALL_FROM_HIGH AND ENTRY1_OK AND ENTRY2_OK AND 
+TODAY_PULLBACK AND ABOVE_YANG2_LOW AND 
+TODAY_SHRINK AND VOL_NORMAL AND TODAY_STABLE AND NOT_BIG_DROP AND
+TREND_UP AND PRICE_POSITION AND TIME_GAP;
+
+{*----- 策略说明 -----*}
+{* 第一次进场：前期低点后放量中阳线,后3天不破低点 *}
+{* 第二次进场：同样逻辑,但要突破第一次高点 *}
+{* 买入时机：第二次进场后缩量回落但不破第二次低点 *}
+
+{*----- 关键参数 -----*}
+{* 中阳线涨幅：>3% *}
+{* 温和放量：1.2-2.5倍平均量 *}
+{* 不破低点：允许0.5%误差 *}
+{* 突破确认：>1% *}
+{* 回落缩量：<80%前日量 *}
+
+{*----- 技术要点 -----*}
+{* 1. 二次进场确认底部扎实 *}
+{* 2. 第二次突破显示主力决心 *}
+{* 3. 缩量回落显示惜售情绪 *}
+{* 4. 买入时机：蓄势完成,即将再次上攻 *}
+
+{*============================*}
+
+{*============================*}
+{* 文件创建时间：2024年 *}
+{* 策略类型：二次进场确认底部突破 *}
+{* 适用周期：3-4个交易日波段 *}
+{* 风险等级：中等风险,技术信号较强 *}
+{*============================*} 

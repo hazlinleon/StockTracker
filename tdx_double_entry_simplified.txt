@@ -1,0 +1,129 @@
+{*====== 二次进场确认选股公式（简化版） ======*}
+
+{* 公式：二次进场确认策略（实用版本） *}
+{* 核心思路：两次放量上涨确认底部，第二次突破第一次高点 *}
+
+{*----- 第一步：寻找两次进场的大致位置 -----*}
+
+{* 第一次进场识别（3-8天前的某一天） *}
+HIGH1_3:=REF(HIGH,3);   HIGH1_4:=REF(HIGH,4);   HIGH1_5:=REF(HIGH,5);
+HIGH1_6:=REF(HIGH,6);   HIGH1_7:=REF(HIGH,7);   HIGH1_8:=REF(HIGH,8);
+
+CLOSE1_3:=REF(CLOSE,3); CLOSE1_4:=REF(CLOSE,4); CLOSE1_5:=REF(CLOSE,5);
+CLOSE1_6:=REF(CLOSE,6); CLOSE1_7:=REF(CLOSE,7); CLOSE1_8:=REF(CLOSE,8);
+
+OPEN1_3:=REF(OPEN,3);   OPEN1_4:=REF(OPEN,4);   OPEN1_5:=REF(OPEN,5);
+OPEN1_6:=REF(OPEN,6);   OPEN1_7:=REF(OPEN,7);   OPEN1_8:=REF(OPEN,8);
+
+VOL1_3:=REF(VOL,3);     VOL1_4:=REF(VOL,4);     VOL1_5:=REF(VOL,5);
+VOL1_6:=REF(VOL,6);     VOL1_7:=REF(VOL,7);     VOL1_8:=REF(VOL,8);
+
+LOW1_3:=REF(LOW,3);     LOW1_4:=REF(LOW,4);     LOW1_5:=REF(LOW,5);
+LOW1_6:=REF(LOW,6);     LOW1_7:=REF(LOW,7);     LOW1_8:=REF(LOW,8);
+
+{* 识别哪一天是第一次进场（阳线且相对放量） *}
+YANG1_3:=CLOSE1_3>OPEN1_3*1.02 AND VOL1_3>REF(MA(VOL,5),4)*1.1;
+YANG1_4:=CLOSE1_4>OPEN1_4*1.02 AND VOL1_4>REF(MA(VOL,5),5)*1.1;
+YANG1_5:=CLOSE1_5>OPEN1_5*1.02 AND VOL1_5>REF(MA(VOL,5),6)*1.1;
+YANG1_6:=CLOSE1_6>OPEN1_6*1.02 AND VOL1_6>REF(MA(VOL,5),7)*1.1;
+YANG1_7:=CLOSE1_7>OPEN1_7*1.02 AND VOL1_7>REF(MA(VOL,5),8)*1.1;
+YANG1_8:=CLOSE1_8>OPEN1_8*1.02 AND VOL1_8>REF(MA(VOL,5),9)*1.1;
+
+{*----- 关键验证：第一次进场中阳线低点不被跌破 -----*}
+
+{* 验证第一次进场后续天数不破低点（允许0.5%误差） *}
+{* 3天前中阳线的后续验证 *}
+HOLD1_3:=IF(YANG1_3,REF(LOW,2)>=LOW1_3*0.995 AND REF(LOW,1)>=LOW1_3*0.995 AND LOW>=LOW1_3*0.995,1);
+
+{* 4天前中阳线的后续验证 *}
+HOLD1_4:=IF(YANG1_4,REF(LOW,3)>=LOW1_4*0.995 AND REF(LOW,2)>=LOW1_4*0.995 AND REF(LOW,1)>=LOW1_4*0.995,1);
+
+{* 5天前中阳线的后续验证 *}
+HOLD1_5:=IF(YANG1_5,REF(LOW,4)>=LOW1_5*0.995 AND REF(LOW,3)>=LOW1_5*0.995 AND REF(LOW,2)>=LOW1_5*0.995,1);
+
+{* 6天前中阳线的后续验证 *}
+HOLD1_6:=IF(YANG1_6,REF(LOW,5)>=LOW1_6*0.995 AND REF(LOW,4)>=LOW1_6*0.995 AND REF(LOW,3)>=LOW1_6*0.995,1);
+
+{* 7天前中阳线的后续验证 *}
+HOLD1_7:=IF(YANG1_7,REF(LOW,6)>=LOW1_7*0.995 AND REF(LOW,5)>=LOW1_7*0.995 AND REF(LOW,4)>=LOW1_7*0.995,1);
+
+{* 8天前中阳线的后续验证 *}
+HOLD1_8:=IF(YANG1_8,REF(LOW,7)>=LOW1_8*0.995 AND REF(LOW,6)>=LOW1_8*0.995 AND REF(LOW,5)>=LOW1_8*0.995,1);
+
+{* 第一次进场有效确认（既要是阳线放量，又要后续不破低点） *}
+VALID1_3:=YANG1_3 AND HOLD1_3;   VALID1_4:=YANG1_4 AND HOLD1_4;
+VALID1_5:=YANG1_5 AND HOLD1_5;   VALID1_6:=YANG1_6 AND HOLD1_6;
+VALID1_7:=YANG1_7 AND HOLD1_7;   VALID1_8:=YANG1_8 AND HOLD1_8;
+
+{* 第一次进场存在确认 *}
+ENTRY1_EXIST:=VALID1_3 OR VALID1_4 OR VALID1_5 OR VALID1_6 OR VALID1_7 OR VALID1_8;
+
+{* 第一次进场的高点（取有效阳线中最高的高点） *}
+H1_CAND3:=IF(VALID1_3,HIGH1_3,0);   H1_CAND4:=IF(VALID1_4,HIGH1_4,0);
+H1_CAND5:=IF(VALID1_5,HIGH1_5,0);   H1_CAND6:=IF(VALID1_6,HIGH1_6,0);
+H1_CAND7:=IF(VALID1_7,HIGH1_7,0);   H1_CAND8:=IF(VALID1_8,HIGH1_8,0);
+
+ENTRY1_HIGH:=MAX(MAX(MAX(H1_CAND3,H1_CAND4),MAX(H1_CAND5,H1_CAND6)),MAX(H1_CAND7,H1_CAND8));
+
+{*----- 第二步：第二次进场识别（昨天或今天） -----*}
+
+{* 昨天是否为第二次进场 *}
+YANG2_YES:=REF(CLOSE,1)>REF(OPEN,1)*1.02 AND REF(VOL,1)>MA(VOL,5)*1.1;
+BREAK_YES:=REF(HIGH,1)>ENTRY1_HIGH*0.98; {* 昨天高点接近或突破第一次高点 *}
+HOLD2_YES:=LOW>=REF(LOW,1)*0.995;       {* 今天不破昨天（第二次进场）低点 *}
+ENTRY2_YES:=YANG2_YES AND BREAK_YES AND HOLD2_YES;
+
+{* 今天是否为第二次进场 *}
+YANG2_TODAY:=CLOSE>OPEN*1.02 AND VOL>MA(VOL,5)*1.1;
+BREAK_TODAY:=HIGH>ENTRY1_HIGH*0.98;
+ENTRY2_TODAY:=YANG2_TODAY AND BREAK_TODAY;     {* 今天是第二次进场则自动满足不破低点 *}
+
+{* 第二次进场确认 *}
+ENTRY2_EXIST:=ENTRY2_YES OR ENTRY2_TODAY;
+
+{*----- 第三步：当前买入时机确认 -----*}
+
+{* 如果昨天是第二次进场，今天应该是缩量回落 *}
+IF_YES_ENTRY2:=ENTRY2_YES AND VOL<REF(VOL,1)*0.85 AND CLOSE<REF(HIGH,1)*0.98;
+
+{* 如果今天是第二次进场，直接买入 *}
+IF_TOD_ENT2:=ENTRY2_TODAY;
+
+{* 买入时机 *}
+BUY_SIGNAL:=IF_YES_ENTRY2 OR IF_TOD_ENT2;
+
+{*----- 第四步：基本安全性确认 -----*}
+
+{* 当前价格不能太低（避免破位股） *}
+PRICE_SAFE:=CLOSE>MA(CLOSE,20)*0.95; {* 收盘价不低于20日均线5% *}
+
+{* 成交量不能太小（避免无人问津的股票） *}
+VOL_ACTIVE:=VOL>MA(VOL,20)*0.3;
+
+{* 近期有明显上涨趋势 *}
+TREND_UP:=CLOSE>REF(CLOSE,10)*0.98; {* 当前价格比10天前高 *}
+
+{*----- 最终选股条件（简化但保留关键逻辑） -----*}
+
+ENTRY1_EXIST AND ENTRY2_EXIST AND BUY_SIGNAL AND 
+PRICE_SAFE AND VOL_ACTIVE AND TREND_UP;
+
+{*----- 策略说明（增加不破低点要求） -----*}
+{* 第一次进场：3-8天前某天，放量阳线（涨幅>2%，放量>1.1倍），后续3天不破低点 *}
+{* 第二次进场：昨天或今天，同样放量阳线，接近第一次高点，不破低点 *}
+{* 买入时机：第二次进场当天或次日缩量回落时 *}
+
+{*----- 关键改进 -----*}
+{* 1. 增加不破低点验证：第一次进场后3天内不破低点（核心条件） *}
+{* 2. 第二次进场低点保护：如果昨天是第二次进场，今天不能破昨天低点 *}
+{* 3. 保持弹性时间窗口：3-8天范围寻找第一次进场 *}
+{* 4. 合理精度要求：涨幅>2%，放量>1.1倍，不破低点允许0.5%误差 *}
+
+{*============================*}
+
+{*============================*}
+{* 文件创建时间：2024年 *}
+{* 版本：简化实用版（增加不破低点验证） *}
+{* 条件数量：6个核心条件 + 关键低点保护验证 *}
+{* 成功率预期：中等偏高（增加技术可靠性） *}
+{*============================*} 
