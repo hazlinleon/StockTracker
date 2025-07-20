@@ -1,0 +1,71 @@
+{通达信选股公式变量对照表}
+
+## 基础变量
+中文版                  英文版      说明
+MA20                   M20         20日均价
+MA5                    M5          5日均价  
+VOL20                  V20         20日均量
+VOL5                   V5          5日均量
+VOL60                  V60         60日均量
+VOL120                 V120        120日均量
+
+## 核心逻辑变量
+中文版                  英文版      说明
+前期地量洗盘            PV          Past Volume washing
+当前量比               CVR         Current Volume Ratio
+量堆出现               VP          Volume Pile appears
+前期小波动天数          PSC         Past Small Change count
+前期小阴小阳充分        PSA         Past Small Amplitude sufficient
+前期高点               PH          Past High
+前期低点               PL          Past Low  
+前期震荡幅度            PR          Past Range
+前期窄幅震荡            PNR         Past Narrow Range
+底部价位               BP          Bottom Price
+底部区域               BA          Bottom Area
+量比                   VR          Volume Ratio
+开始放量               VU          Volume Up
+价格上攻               PU          Price Up
+均线转强               MS          MA Strong
+当日涨幅               DR          Daily Return
+涨幅适中               RM          Reasonable Move
+
+## 最终条件变量
+中文版                  英文版      说明
+底部吸筹               BTA         Bottom Absorption
+启动确认               SC          Start Confirm
+
+## 公式逻辑对比
+
+### 中文版（原版）：
+```
+底部吸筹:=前期地量洗盘 AND 量堆出现 AND 前期小阴小阳充分 AND 前期窄幅震荡 AND 底部区域;
+启动确认:=开始放量 AND 价格上攻 AND 均线转强 AND 涨幅适中;
+底部吸筹 AND 启动确认;
+```
+
+### 英文版（简化）：
+```
+BTA:=PV AND VP AND PSA AND PNR AND BA;
+SC:=VU AND PU AND MS AND RM;
+BTA AND SC;
+```
+
+## 字符统计对比
+- 中文版总字符数: ~1200字符
+- 英文版总字符数: ~800字符
+- 节省字符数: ~400字符 (33%减少)
+
+## 优势
+1. **字符更少** - 减少33%的字符数量
+2. **输入更快** - 英文字符输入更便捷
+3. **通用性强** - 英文变量名更通用
+4. **逻辑清晰** - 缩写含义明确
+5. **维护方便** - 代码更简洁
+
+## 注意事项
+- 变量含义保持不变
+- 所有数值参数保持一致  
+- 逻辑关系完全相同
+- 只是变量名简化
+
+使用时直接复制英文版到通达信即可！ 
