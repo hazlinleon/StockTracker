@@ -52,28 +52,35 @@ HAS_TURN_SIGNAL := COUNT(BIG_YANG, 10) >= 1 AND MA20_TURN AND ON_MA20;
 {*------------------------------------------*}
 {* 阶段4：蓄势待发 (The Setup) - 当前状态 *}
 {* 时间推算：最近 3-5 天 *}
-{* 逻辑：温和放量，价格逼近前高，准备突破 *}
+{* 逻辑：温和放量，价格逼近前高，但【绝对不能】已经有效突破过 *}
 {*------------------------------------------*}
 
-{* 价格位置：当前收盘价 接近 活跃区高点 (0.9 - 1.05倍) *}
-PRICE_READY := CLOSE >= H_ACTIVE_HIGH * 0.90 AND CLOSE <= H_ACTIVE_HIGH * 1.05;
+{* 1. 价格位置控制：当前收盘价必须在“前高”下方附近 *}
+{* 范围：前高的 85% - 102% (允许微幅过一点点，但不能站稳) *}
+PRICE_POS_OK := CLOSE >= H_ACTIVE_HIGH * 0.85 AND CLOSE <= H_ACTIVE_HIGH * 1.02;
 
-{* 试盘动作：最近 5天内 出现过上影线 (最高价冲过去，收盘价没站稳) *}
-{* 上影线长度 > 实体长度 *}
+{* 2. 排除假突破回落：最近 10天内，最高价不能超过前高太多 *}
+{* 如果最近10天曾经冲到过 1.05倍以上，说明已经试过盘且失败了，或者已经突破过，排除 *}
+NO_RECENT_BREAKOUT := HHV(HIGH, 10) <= H_ACTIVE_HIGH * 1.05;
+
+{* 3. 试盘动作（可选）：最好有上影线，但不是必须 *}
 UPPER_SHADOW := (HIGH - MAX(CLOSE, OPEN)) > (ABS(CLOSE - OPEN));
 HAS_TEST := COUNT(UPPER_SHADOW, 5) >= 1;
+
+{* 4. 蓄势确认 *}
+IS_SETUP := PRICE_POS_OK AND NO_RECENT_BREAKOUT;
 
 {*------------------------------------------*}
 {* 综合选股 (灵活组合) *}
 {*------------------------------------------*}
 
 {* 组合1：标准模式 (四个阶段都完美) *}
-MODE_STD := IS_ACTIVE AND IS_WASH AND HAS_TURN_SIGNAL AND PRICE_READY;
+MODE_STD := IS_ACTIVE AND IS_WASH AND HAS_TURN_SIGNAL AND IS_SETUP;
 
 {* 组合2：强势模式 (洗盘没那么深，但反转很强) *}
 {* 允许洗盘量稍微大一点 (0.7)，但必须有试盘动作 *}
 IS_WASH_WEAK := V_WASH_LOW < V_ACTIVE_35_55 * 0.7;
-MODE_STRONG := IS_ACTIVE AND IS_WASH_WEAK AND HAS_TURN_SIGNAL AND PRICE_READY AND HAS_TEST;
+MODE_STRONG := IS_ACTIVE AND IS_WASH_WEAK AND HAS_TURN_SIGNAL AND IS_SETUP AND HAS_TEST;
 
 {* 最终输出 *}
 XG: MODE_STD OR MODE_STRONG;
