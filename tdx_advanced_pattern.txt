@@ -1,13 +1,14 @@
-{*====== N字战法_破位洗盘蓄势突破选股公式 (V3 - 灵活版) ======*}
-{* 核心逻辑：45天活跃吸筹 -> 破位洗盘30天 -> 反弹修复 -> 逼近前高蓄势 *}
-{* 特点：三种模式（严格/标准/宽松），方便测试和择优 *}
+{*====== N字战法_破位洗盘蓄势突破选股公式 (V4 - 量柱突刺版) ======*}
+{* 核心逻辑：45天活跃吸筹(必须有高量柱) -> 破位洗盘30天 -> 反弹修复 -> 逼近前高蓄势 *}
+{* 特点：引入"量柱突刺"检测，剔除假活跃股 *}
 
 {*------------------------------------------*}
 {* 阶段1：活跃吸筹区 (Active Zone - 45 days) *}
 {* 时间：弹性窗口 60-90天前 *}
+{* 核心升级：不仅看均量，更要看"量柱突刺" *}
 {*------------------------------------------*}
 
-{* 定义多个时间窗口（增加弹性） *}
+{* 定义多个时间窗口 *}
 V_ACT_75 := REF(MA(VOL, 45), 75);
 V_ACT_60 := REF(MA(VOL, 45), 60);
 V_ACT_90 := REF(MA(VOL, 45), 90);
@@ -20,15 +21,24 @@ L_ACT_75 := REF(LLV(LOW, 45), 75);
 L_ACT_60 := REF(LLV(LOW, 45), 60);
 L_ACT_90 := REF(LLV(LOW, 45), 90);
 
-{* 取三个窗口中最合适的（量能最大的那个） *}
+{* 取最活跃的窗口 *}
 V_ACT := MAX(MAX(V_ACT_60, V_ACT_75), V_ACT_90);
 H_ACT := MAX(MAX(H_ACT_60, H_ACT_75), H_ACT_90);
 L_ACT := MIN(MIN(L_ACT_60, L_ACT_75), L_ACT_90);
 
-{* 活跃区确认：三种宽严程度 *}
-ACT_STRICT := V_ACT > MA(VOL, 120) * 1.2;  {* 严格：1.2倍 *}
-ACT_NORMAL := V_ACT > MA(VOL, 120) * 1.15; {* 标准：1.15倍 *}
-ACT_LOOSE := V_ACT > MA(VOL, 120) * 1.1;   {* 宽松：1.1倍 *}
+{* --- 量柱突刺检测 (Volume Spike Detection) --- *}
+{* 定义突刺：单日成交量 > 5日均量 * 2.5 (倍量柱) *}
+{* 或者：单日成交量 > 120日均量 * 3 (绝对高量) *}
+SPIKE_COND := VOL > MA(VOL, 5) * 2.5 OR VOL > MA(VOL, 120) * 3;
+
+{* 在活跃期窗口内（比如75天前的45天里），至少出现过 2次 突刺 *}
+{* 注意：这里简化处理，检测过去 60-120天 范围内的高量柱密度 *}
+HAS_SPIKE := COUNT(SPIKE_COND, 120) >= 2;
+
+{* 活跃区确认：均量达标 + 有突刺 *}
+ACT_STRICT := V_ACT > MA(VOL, 120) * 1.2 AND HAS_SPIKE;
+ACT_NORMAL := V_ACT > MA(VOL, 120) * 1.15 AND HAS_SPIKE;
+ACT_LOOSE := V_ACT > MA(VOL, 120) * 1.1 AND HAS_SPIKE; {* 宽松模式也必须有突刺 *}
 
 {*------------------------------------------*}
 {* 左侧大前高识别 *}
@@ -36,7 +46,7 @@ ACT_LOOSE := V_ACT > MA(VOL, 120) * 1.1;   {* 宽松：1.1倍 *}
 
 H_PREV := REF(HHV(HIGH, 180), 90);
 
-{* 箱体上沿接近前高：三种宽严程度 *}
+{* 箱体上沿接近前高 *}
 NEAR_STRICT := H_ACT >= H_PREV * 0.85 AND H_ACT <= H_PREV * 1.10;
 NEAR_NORMAL := H_ACT >= H_PREV * 0.80 AND H_ACT <= H_PREV * 1.15;
 NEAR_LOOSE := H_ACT >= H_PREV * 0.75 AND H_ACT <= H_PREV * 1.20;
@@ -51,10 +61,10 @@ V_WASH_LOW := REF(LLV(MA(VOL, 5), 30), 10);
 {* 破位确认 *}
 BREAK_DOWN := WASH_LOW < L_ACT * 0.99;
 
-{* 缩量确认：三种宽严程度 *}
-VOL_STRICT := V_WASH_LOW < V_ACT * 0.4;  {* 严格：40% *}
-VOL_NORMAL := V_WASH_LOW < V_ACT * 0.5;  {* 标准：50% *}
-VOL_LOOSE := V_WASH_LOW < V_ACT * 0.6;   {* 宽松：60% *}
+{* 缩量确认 *}
+VOL_STRICT := V_WASH_LOW < V_ACT * 0.4;
+VOL_NORMAL := V_WASH_LOW < V_ACT * 0.5;
+VOL_LOOSE := V_WASH_LOW < V_ACT * 0.6;
 
 {* 洗盘有效 *}
 WASH_STRICT := BREAK_DOWN AND VOL_STRICT;
@@ -65,10 +75,8 @@ WASH_LOOSE := BREAK_DOWN AND VOL_LOOSE;
 {* 阶段3：反弹修复 *}
 {*------------------------------------------*}
 
-{* 放量中阳 *}
 BIG_YANG := CLOSE > OPEN * 1.03 AND VOL > REF(MA(VOL, 5), 1) * 1.5;
 
-{* 均线确认 *}
 MA20 := MA(CLOSE, 20);
 MA20_TURN := MA20 > REF(MA20, 1) AND REF(MA20, 1) > REF(MA20, 2);
 ON_MA20 := CLOSE > MA20;
@@ -76,16 +84,14 @@ ON_MA20 := CLOSE > MA20;
 MA60 := MA(CLOSE, 60);
 MA60_SLOW := MA60 > REF(MA60, 5) * 0.98;
 
-{* 反弹力度：三种宽严程度 *}
 REBOUND := (CLOSE - WASH_LOW) / WASH_LOW;
-UP_STRICT := REBOUND >= 0.10;  {* 严格：10% *}
-UP_NORMAL := REBOUND >= 0.08;  {* 标准：8% *}
-UP_LOOSE := REBOUND >= 0.06;   {* 宽松：6% *}
+UP_STRICT := REBOUND >= 0.10;
+UP_NORMAL := REBOUND >= 0.08;
+UP_LOOSE := REBOUND >= 0.06;
 
-{* 反转确认 *}
 TURN_STRICT := COUNT(BIG_YANG, 10) >= 1 AND MA20_TURN AND MA60_SLOW AND ON_MA20 AND UP_STRICT;
 TURN_NORMAL := COUNT(BIG_YANG, 10) >= 1 AND MA20_TURN AND MA60_SLOW AND ON_MA20 AND UP_NORMAL;
-TURN_LOOSE := COUNT(BIG_YANG, 10) >= 1 AND MA20_TURN AND ON_MA20 AND UP_LOOSE; {* 不要求60日线 *}
+TURN_LOOSE := COUNT(BIG_YANG, 10) >= 1 AND MA20_TURN AND ON_MA20 AND UP_LOOSE;
 
 {*------------------------------------------*}
 {* 阶段4：蓄势待发 *}
@@ -98,17 +104,11 @@ NO_BREAK := HHV(HIGH, 10) <= H_ACT * 1.05;
 IS_SETUP := NEAR_ACT AND FAR_PREV AND NO_BREAK;
 
 {*------------------------------------------*}
-{* 综合选股：三种模式 *}
+{* 综合选股 *}
 {*------------------------------------------*}
 
-{* 模式1：严格模式（高质量，少而精） *}
 MODE_STRICT := ACT_STRICT AND NEAR_STRICT AND WASH_STRICT AND TURN_STRICT AND IS_SETUP;
-
-{* 模式2：标准模式（平衡质量与数量） *}
 MODE_NORMAL := ACT_NORMAL AND NEAR_NORMAL AND WASH_NORMAL AND TURN_NORMAL AND IS_SETUP;
-
-{* 模式3：宽松模式（扩大范围，便于测试） *}
 MODE_LOOSE := ACT_LOOSE AND NEAR_LOOSE AND WASH_LOOSE AND TURN_LOOSE AND IS_SETUP;
 
-{* 最终输出：取并集 *}
 XG: MODE_STRICT OR MODE_NORMAL OR MODE_LOOSE;
