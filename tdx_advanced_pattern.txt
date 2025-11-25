@@ -1,4 +1,4 @@
-{*====== N字战法-高级形态潜伏选股公式 (Advanced Watcher V2) ======*}
+{*====== N字战法_高级形态潜伏选股公式 (Advanced Watcher V2) ======*}
 {* 核心逻辑：活跃吸筹(20天) -> 缩量洗盘(20天) -> 趋势反转(6-8天) -> 蓄势待发(3-4天) *}
 {* 特点：采用灵活的时间窗口组合，确保模式匹配的同时不漏掉好票 *}
 
@@ -9,12 +9,12 @@
 {*------------------------------------------*}
 
 {* 定义活跃区的时间窗口：取 35天前 到 55天前 *}
-V_ACTIVE_35_55 := REF(MA(VOL, 20), 35); {* 35天前的20日均量 *}
-H_ACTIVE_HIGH  := REF(HHV(HIGH, 20), 35); {* 当时的高点 *}
+V_ACT := REF(MA(VOL, 20), 35); {* 35天前的20日均量 *}
+H_ACT := REF(HHV(HIGH, 20), 35); {* 当时的高点 *}
 
 {* 活跃区确认：当时的量能必须比较大 *}
 {* 这里的“大”是相对的，比如大于长期均量 *}
-IS_ACTIVE := V_ACTIVE_35_55 > MA(VOL, 100) * 1.2; 
+IS_ACTIVE := V_ACT > MA(VOL, 100) * 1.2; 
 
 
 {*------------------------------------------*}
@@ -28,7 +28,7 @@ IS_ACTIVE := V_ACTIVE_35_55 > MA(VOL, 100) * 1.2;
 V_WASH_LOW := REF(LLV(MA(VOL, 5), 20), 10);
 
 {* 洗盘确认：洗盘区的地量 < 活跃区均量的 50% *}
-IS_WASH := V_WASH_LOW < V_ACTIVE_35_55 * 0.5;
+IS_WASH := V_WASH_LOW < V_ACT * 0.5;
 
 
 {*------------------------------------------*}
@@ -46,7 +46,7 @@ ON_MA20 := CLOSE > MA(CLOSE, 20);
 MA20_TURN := MA(CLOSE, 20) > REF(MA(CLOSE, 20), 1) AND REF(MA(CLOSE, 20), 1) > REF(MA(CLOSE, 20), 2);
 
 {* 确认反转发生：最近10天内出现过至少一次 BIG_YANG，且目前均线是好的 *}
-HAS_TURN_SIGNAL := COUNT(BIG_YANG, 10) >= 1 AND MA20_TURN AND ON_MA20;
+HAS_TURN := COUNT(BIG_YANG, 10) >= 1 AND MA20_TURN AND ON_MA20;
 
 
 {*------------------------------------------*}
@@ -57,30 +57,30 @@ HAS_TURN_SIGNAL := COUNT(BIG_YANG, 10) >= 1 AND MA20_TURN AND ON_MA20;
 
 {* 1. 价格位置控制：当前收盘价必须在“前高”下方附近 *}
 {* 范围：前高的 85% - 102% (允许微幅过一点点，但不能站稳) *}
-PRICE_POS_OK := CLOSE >= H_ACTIVE_HIGH * 0.85 AND CLOSE <= H_ACTIVE_HIGH * 1.02;
+PRICE_POS_OK := CLOSE >= H_ACT * 0.85 AND CLOSE <= H_ACT * 1.02;
 
 {* 2. 排除假突破回落：最近 10天内，最高价不能超过前高太多 *}
 {* 如果最近10天曾经冲到过 1.05倍以上，说明已经试过盘且失败了，或者已经突破过，排除 *}
-NO_RECENT_BREAKOUT := HHV(HIGH, 10) <= H_ACTIVE_HIGH * 1.05;
+NO_BREAK := HHV(HIGH, 10) <= H_ACT * 1.05;
 
 {* 3. 试盘动作（可选）：最好有上影线，但不是必须 *}
 UPPER_SHADOW := (HIGH - MAX(CLOSE, OPEN)) > (ABS(CLOSE - OPEN));
 HAS_TEST := COUNT(UPPER_SHADOW, 5) >= 1;
 
 {* 4. 蓄势确认 *}
-IS_SETUP := PRICE_POS_OK AND NO_RECENT_BREAKOUT;
+IS_SETUP := PRICE_POS_OK AND NO_BREAK;
 
 {*------------------------------------------*}
 {* 综合选股 (灵活组合) *}
 {*------------------------------------------*}
 
 {* 组合1：标准模式 (四个阶段都完美) *}
-MODE_STD := IS_ACTIVE AND IS_WASH AND HAS_TURN_SIGNAL AND IS_SETUP;
+MODE_STD := IS_ACTIVE AND IS_WASH AND HAS_TURN AND IS_SETUP;
 
 {* 组合2：强势模式 (洗盘没那么深，但反转很强) *}
 {* 允许洗盘量稍微大一点 (0.7)，但必须有试盘动作 *}
-IS_WASH_WEAK := V_WASH_LOW < V_ACTIVE_35_55 * 0.7;
-MODE_STRONG := IS_ACTIVE AND IS_WASH_WEAK AND HAS_TURN_SIGNAL AND IS_SETUP AND HAS_TEST;
+WASH_WEAK := V_WASH_LOW < V_ACT * 0.7;
+MODE_STRONG := IS_ACTIVE AND WASH_WEAK AND HAS_TURN AND IS_SETUP AND HAS_TEST;
 
 {* 最终输出 *}
 XG: MODE_STD OR MODE_STRONG;
