@@ -25,6 +25,10 @@ IS_ACTIVE := V_ACT > MA(VOL, 120) * 1.2;
 {* 从90天前开始，往前推180天寻找最高点（覆盖约10个月历史） *}
 H_PREV := REF(HHV(HIGH, 180), 90); {* 90-270天前的最高价 *}
 
+{* 核心约束：箱体上沿必须接近大前高（清洗套牢盘的前提） *}
+{* 如果 H_ACT 离 H_PREV 太远，说明根本没触及前高，起不到清洗作用 *}
+ACT_NEAR_PREV := H_ACT >= H_PREV * 0.85 AND H_ACT <= H_PREV * 1.10;
+
 
 {*------------------------------------------*}
 {* 阶段2：破位洗盘区 (Breakdown Wash - 30 days) *}
@@ -95,5 +99,5 @@ IS_SETUP := NEAR_ACT AND FAR_PREV AND NO_BREAK;
 {* 综合选股 (Final Output) *}
 {*------------------------------------------*}
 
-{* 标准模式：五个阶段全部满足 *}
-XG: IS_ACTIVE AND IS_WASH AND HAS_TURN AND IS_SETUP;
+{* 标准模式：五个阶段全部满足 + 箱体上沿接近前高 *}
+XG: IS_ACTIVE AND ACT_NEAR_PREV AND IS_WASH AND HAS_TURN AND IS_SETUP;
